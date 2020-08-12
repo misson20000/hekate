@@ -1455,6 +1455,9 @@ int usb_device_ep0_initialize(usb_gadget_type type)
 	case USB_GADGET_HID_TOUCHPAD:
 		usbd_otg->desc = &usb_gadget_hid_touch_descriptors;
 		break;
+	case USB_GADGET_FASTBOOT:
+		usbd_otg->desc = &usb_gadget_fastboot_descriptors;
+		break;
 	}
 
 	usbd_otg->type = type;

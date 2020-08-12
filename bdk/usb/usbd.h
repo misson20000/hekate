@@ -39,6 +39,7 @@ typedef struct _usb_ctxt_t
 	void (*system_maintenance)(bool);
 	void *label;
 	void (*set_text)(void *, const char *);
+	void (*reload_nyx)();
 } usb_ctxt_t;
 
 typedef enum _usb_hid_type
@@ -51,7 +52,8 @@ typedef enum _usb_gadget_type
 {
 	USB_GADGET_UMS,
 	USB_GADGET_HID_GAMEPAD,
-	USB_GADGET_HID_TOUCHPAD
+	USB_GADGET_HID_TOUCHPAD,
+	USB_GADGET_FASTBOOT
 } usb_gadget_type;
 
 typedef enum
@@ -79,6 +81,7 @@ bool usb_device_get_suspended();
 
 int  usb_device_gadget_ums(usb_ctxt_t *usbs);
 int  usb_device_gadget_hid(usb_ctxt_t *usbs);
+int  usb_device_gadget_fastboot(usb_ctxt_t *usbs);
 bool usb_device_get_max_lun(u8 max_lun);
 bool usb_device_get_hid_report();
 u32  usb_device_get_port_status();

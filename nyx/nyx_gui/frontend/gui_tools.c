@@ -334,6 +334,38 @@ static lv_res_t _create_mbox_ums_error(int error)
 	return LV_RES_OK;
 }
 
+static lv_res_t _create_mbox_fastboot(usb_ctxt_t *usbs)
+{
+	lv_obj_t *dark_bg = lv_obj_create(lv_scr_act(), NULL);
+	lv_obj_set_style(dark_bg, &mbox_darken);
+	lv_obj_set_size(dark_bg, LV_HOR_RES, LV_VER_RES);
+
+	static const char *mbox_btn_map[] = { "\211", "\262Close", "\211", "" };
+	static const char *mbox_btn_map2[] = { "\211", "\222Close", "\211", "" };
+	lv_obj_t *mbox = lv_mbox_create(dark_bg, NULL);
+	lv_mbox_set_recolor_text(mbox, true);
+
+	lv_mbox_set_text(mbox, "#FF8000 Fastboot#");
+
+	lv_obj_t *lbl_status = lv_label_create(mbox, NULL);
+	lv_label_set_recolor(lbl_status, true);
+	lv_label_set_text(lbl_status, " ");
+	usbs->label = (void *)lbl_status;
+
+	lv_mbox_add_btns(mbox, mbox_btn_map, mbox_action);
+	lv_obj_set_width(mbox, LV_HOR_RES / 9 * 5);
+	lv_obj_align(mbox, NULL, LV_ALIGN_CENTER, 0, 0);
+	lv_obj_set_top(mbox, true);
+
+	usb_device_gadget_fastboot(usbs);
+
+	lv_mbox_add_btns(mbox, mbox_btn_map2, mbox_action);
+
+	ums_mbox = dark_bg;
+
+	return LV_RES_OK;
+}
+
 static void usb_gadget_set_text(void *lbl, const char *text)
 {
 	lv_label_set_text((lv_obj_t *)lbl, text);
@@ -387,6 +419,18 @@ static lv_res_t _action_hid_touch(lv_obj_t *btn)
 	return LV_RES_OK;
 }
 */
+
+static lv_res_t _action_fastboot(lv_obj_t *btn)
+{
+	usb_ctxt_t usbs;
+	usbs.system_maintenance = &manual_system_maintenance;
+	usbs.set_text = &usb_gadget_set_text;
+	usbs.reload_nyx = &reload_nyx;
+
+	_create_mbox_fastboot(&usbs);
+
+	return LV_RES_OK;
+}
 
 static bool usb_msc_emmc_read_only;
 lv_res_t action_ums_sd(lv_obj_t *btn)
@@ -806,6 +850,14 @@ static lv_res_t _create_window_usb_tools(lv_obj_t *parent)
 	lv_obj_set_style(label_txt4, &hint_small_style);
 	lv_obj_align(label_txt4, btn4, LV_ALIGN_OUT_BOTTOM_LEFT, 0, LV_DPI / 3);
 */
+
+	// Create Fastboot button.
+	lv_obj_t *btn5 = lv_btn_create(h2, btn1);
+	label_btn = lv_label_create(btn5, NULL);
+	lv_label_set_static_text(label_btn, SYMBOL_DOWNLOAD"  Fastboot");
+	lv_obj_align(btn5, label_txt4, LV_ALIGN_OUT_BOTTOM_LEFT, 0, LV_DPI / 2);
+	lv_btn_set_action(btn5, LV_BTN_ACTION_CLICK, _action_fastboot);
+	
 	return LV_RES_OK;
 }
 

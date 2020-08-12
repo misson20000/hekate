@@ -369,14 +369,14 @@ usb_dev_bot_t usb_device_binary_object_descriptor =
 	.wU2DevExitLat          = 0
 };
 
-u8 usb_vendor_string_descriptor_ums[32] =
+u8 usb_vendor_string_descriptor_ums[26] =
 {
 	26, 0x03,
 	'N', 0, 'y', 0, 'x', 0, ' ', 0, 'U', 0, 'S', 0, 'B', 0, ' ', 0,
 	'D', 0, 'i', 0, 's', 0, 'k', 0
 };
 
-u8 usb_product_string_descriptor_ums[22] =
+u8 usb_product_string_descriptor_ums[8] =
 {
 	8, 0x03,
 	'U', 0, 'M', 0, 'S', 0
@@ -544,7 +544,7 @@ usb_cfg_hid_descr_t usb_configuration_descriptor_hid_jc =
 	.endpoint[1].bInterval        = 4 // 4ms on FS, 8ms on HS.
 };
 
-u8 usb_vendor_string_descriptor_hid[22] =
+u8 usb_vendor_string_descriptor_hid[16] =
 {
 	16, 0x03,
 	'N', 0, 'y', 0, 'x', 0, ' ', 0,
@@ -707,6 +707,126 @@ usb_cfg_hid_descr_t usb_configuration_descriptor_hid_touch =
 	.endpoint[1].bInterval        = 4 // 4ms on FS, 8ms on HS.
 };
 
+usb_dev_descr_t usb_device_descriptor_fastboot =
+{
+	.bLength         = 18,
+	.bDescriptorType = USB_DESCRIPTOR_DEVICE,
+	.bcdUSB          = 0x210,
+	.bDeviceClass    = 0x00,
+	.bDeviceSubClass = 0x00,
+	.bDeviceProtocol = 0x00,
+	.bMaxPacketSize  = 0x40,
+	.idVendor        = 0x11EC, // Nintendo: 0x057E, Nvidia: 0x0955
+	.idProduct       = 0xA7E3, // Switch:   0x2000, usbd:   0x3000
+	.bcdDevice       = 0x0101,
+	.iManufacturer   = 1,
+	.iProduct        = 2,
+	.iSerialNumber   = 3,
+	.bNumConfigs     = 1
+};
+
+usb_cfg_simple_descr_t usb_configuration_descriptor_fastboot =
+{
+	/* Configuration descriptor structure */
+	.config.bLength               = 9,
+	.config.bDescriptorType       = USB_DESCRIPTOR_CONFIGURATION,
+	.config.wTotalLength          = sizeof(usb_cfg_simple_descr_t),
+	.config.bNumInterfaces        = 0x01,
+	.config.bConfigurationValue   = 0x01,
+	.config.iConfiguration        = 0x00,
+	.config.bmAttributes          = USB_ATTR_SELF_POWERED | USB_ATTR_BUS_POWERED_RSVD,
+	.config.bMaxPower             = 32 / 2,
+
+	/* Interface descriptor structure */
+	.interface.bLength            = 9,
+	.interface.bDescriptorType    = USB_DESCRIPTOR_INTERFACE,
+	.interface.bInterfaceNumber   = 0,
+	.interface.bAlternateSetting  = 0,
+	.interface.bNumEndpoints      = 2,
+	.interface.bInterfaceClass    = 0xff, // Vendor Specific Device Class.
+	.interface.bInterfaceSubClass = 0x42, // Fastboot.
+	.interface.bInterfaceProtocol = 0x03, // Fastboot.
+	.interface.iInterface         = 0x00,
+
+	/* Endpoint descriptor structure EP1 IN */
+	.endpoint[0].bLength          = 7,
+	.endpoint[0].bDescriptorType  = USB_DESCRIPTOR_ENDPOINT,
+	.endpoint[0].bEndpointAddress = 0x81, // USB_EP_ADDR_BULK_IN.
+	.endpoint[0].bmAttributes     = USB_EP_TYPE_BULK,
+	.endpoint[0].wMaxPacketSize   = 0x200,
+	.endpoint[0].bInterval        = 0,
+
+	/* Endpoint descriptor structure EP1 OUT */
+	.endpoint[1].bLength          = 7,
+	.endpoint[1].bDescriptorType  = USB_DESCRIPTOR_ENDPOINT,
+	.endpoint[1].bEndpointAddress = 0x01, // USB_EP_ADDR_BULK_OUT.
+	.endpoint[1].bmAttributes     = USB_EP_TYPE_BULK,
+	.endpoint[1].wMaxPacketSize   = 0x200,
+	.endpoint[1].bInterval        = 0,
+};
+
+usb_cfg_simple_descr_t usb_other_speed_config_descriptor_fastboot =
+{
+	/* Other Speed Configuration descriptor structure */
+	.config.bLength               = 9,
+	.config.bDescriptorType       = USB_DESCRIPTOR_OTHER_SPEED_CONFIGURATION,
+	.config.wTotalLength          = 0x20,
+	.config.bNumInterfaces        = 0x01,
+	.config.bConfigurationValue   = 0x01,
+	.config.iConfiguration        = 0x00,
+	.config.bmAttributes          = USB_ATTR_SELF_POWERED | USB_ATTR_BUS_POWERED_RSVD,
+	.config.bMaxPower             = 32 / 2,
+
+	/* Interface descriptor structure */
+	.interface.bLength            = 9,
+	.interface.bDescriptorType    = USB_DESCRIPTOR_INTERFACE,
+	.interface.bInterfaceNumber   = 0x00,
+	.interface.bAlternateSetting  = 0x00,
+	.interface.bNumEndpoints      = 2,
+	.interface.bInterfaceClass    = 0xff, // Vendor Specific Device Class.
+	.interface.bInterfaceSubClass = 0x42, // Fastboot.
+	.interface.bInterfaceProtocol = 0x03, // Fastboot.
+	.interface.iInterface         = 0x00,
+
+	/* Endpoint descriptor structure EP1 IN */
+	.endpoint[0].bLength          = 7,
+	.endpoint[0].bDescriptorType  = USB_DESCRIPTOR_ENDPOINT,
+	.endpoint[0].bEndpointAddress = 0x81, // USB_EP_ADDR_BULK_IN.
+	.endpoint[0].bmAttributes     = USB_EP_TYPE_BULK,
+	.endpoint[0].wMaxPacketSize   = 0x40,
+	.endpoint[0].bInterval        = 0,
+
+	/* Endpoint descriptor structure EP1 OUT */
+	.endpoint[1].bLength          = 7,
+	.endpoint[1].bDescriptorType  = USB_DESCRIPTOR_ENDPOINT,
+	.endpoint[1].bEndpointAddress = 0x01, // USB_EP_ADDR_BULK_OUT.
+	.endpoint[1].bmAttributes     = USB_EP_TYPE_BULK,
+	.endpoint[1].wMaxPacketSize   = 0x40,
+	.endpoint[1].bInterval        = 0
+};
+
+u8 usb_vendor_string_descriptor_fastboot[16] =
+{
+	16, 0x03,
+	'N', 0, 'y', 0, 'x', 0, ' ', 0,
+	'U', 0, 'S', 0, 'B', 0
+};
+
+u8 usb_product_string_descriptor_fastboot[26] =
+{
+	26, 0x03,
+	'N', 0, 'y', 0, 'x', 0, ' ', 0,
+	'F', 0, 'a', 0, 's', 0, 't', 0, 'b', 0, 'o', 0, 'o', 0, 't', 0
+};
+
+usb_ms_ext_prop_descr_t usb_ms_ext_prop_descriptor_fastboot =
+{
+	.dLength             = 7,
+	.wVersion            = 0x100,
+	.wExtendedProperty   = USB_DESCRIPTOR_MS_EXTENDED_PROPERTIES,
+	.wSections           = 0,
+};
+
 usb_desc_t usb_gadget_ums_descriptors =
 {
 	.dev       = &usb_device_descriptor_ums,
@@ -747,6 +867,20 @@ usb_desc_t usb_gadget_hid_touch_descriptors =
 	.ms_os     = &usb_ms_os_descriptor,
 	.ms_cid    = &usb_ms_cid_descriptor,
 	.mx_ext    = &usb_ms_ext_prop_descriptor_hid
+};
+
+usb_desc_t usb_gadget_fastboot_descriptors =
+{
+	.dev       = &usb_device_descriptor_fastboot,
+	.dev_qual  = &usb_device_qualifier_descriptor,
+	.cfg       = &usb_configuration_descriptor_fastboot,
+	.cfg_other = &usb_other_speed_config_descriptor_fastboot,
+	.dev_bot   = &usb_device_binary_object_descriptor,
+	.vendor    = usb_vendor_string_descriptor_fastboot,
+	.product   = usb_product_string_descriptor_fastboot,
+	.ms_os     = &usb_ms_os_descriptor,
+	.ms_cid    = &usb_ms_cid_descriptor,
+	.mx_ext    = &usb_ms_ext_prop_descriptor_fastboot
 };
 
 #endif
