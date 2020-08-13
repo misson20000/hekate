@@ -328,6 +328,7 @@ int usb_device_gadget_fastboot(usb_ctxt_t *usbs)
 		fastboot_handle_ep0_ctrl(&fastboot);
 
 		const char *rx_state_name = "invalid";
+		char rx_state_buffer[64];
 		
 		switch (fastboot.rx_state)
 		{
@@ -340,7 +341,8 @@ int usb_device_gadget_fastboot(usb_ctxt_t *usbs)
 			fastboot_rx_state_command(&fastboot);
 			break;
 		case FASTBOOT_RX_STATE_DOWNLOAD:
-			rx_state_name = "download";
+			s_printf(rx_state_buffer, "downloading (%d/%d KiB)", fastboot.download_head / 1024, fastboot.download_size / 1024);
+			rx_state_name = rx_state_buffer;
 			fastboot_rx_state_download(&fastboot);
 			break;
 		case FASTBOOT_RX_STATE_WAITING_TX_FOR_PROCESS:
