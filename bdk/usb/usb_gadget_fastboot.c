@@ -79,7 +79,7 @@ typedef struct _usbd_gadget_fastboot_t {
 	enum fastboot_tx_state tx_state;
 	
 	// +1 for null terminator because we use string functions
-	char rx_buffer[FASTBOOT_COMMAND_BUFFER_SIZE + 1];
+	char *rx_buffer;
 	u32 rx_length;
 
 	u32 download_head;
@@ -87,7 +87,7 @@ typedef struct _usbd_gadget_fastboot_t {
 	u32 download_amount;
 	
 	// +1 for null terminator because we use string functions
-	char tx_buffer[FASTBOOT_COMMAND_BUFFER_SIZE + 1];
+	char *tx_buffer;
 	u32 tx_length;
 	
 	void (*system_maintenance)(bool);
@@ -126,7 +126,7 @@ static void fastboot_send_response(usbd_gadget_fastboot_t *fastboot, enum fastbo
 {
 	//fastboot->set_text(fastboot->label, "#C7EA46 Status:# Sending response");
 
-	memset(fastboot->tx_buffer, 0, sizeof(fastboot->tx_buffer));
+	memset(fastboot->tx_buffer, 0, FASTBOOT_COMMAND_BUFFER_SIZE + 1);
 	
 	switch (type)
 	{
@@ -146,7 +146,7 @@ static void fastboot_send_response(usbd_gadget_fastboot_t *fastboot, enum fastbo
 
 	if (message != NULL)
 	{
-		strncpy(fastboot->tx_buffer + 4, message, sizeof(fastboot->tx_buffer) - 4);
+		strncpy(fastboot->tx_buffer + 4, message, FASTBOOT_COMMAND_BUFFER_SIZE + 1 - 4);
 	}
 
 	// need to prepare for rx before we send response because it is possible for host to turn around very fast
@@ -299,6 +299,9 @@ int usb_device_gadget_fastboot(usb_ctxt_t *usbs)
 	memset(&fastboot, 0, sizeof(fastboot));
 
 	fastboot.status = FASTBOOT_STATUS_NORMAL;
+
+	fastboot.rx_buffer = (char*) USB_EP_BULK_OUT_BUF_ADDR;
+	fastboot.tx_buffer = (char*) USB_EP_BULK_IN_BUF_ADDR;
 	
 	fastboot.label = usbs->label;
 	fastboot.set_text = usbs->set_text;
@@ -441,9 +444,9 @@ static void fastboot_rx_enter_download(usbd_gadget_fastboot_t *fastboot)
 	if (fastboot->download_head < fastboot->download_size)
 	{
 		if (usb_device_read_ep1_out(
-			    fastboot_download_buffer + fastboot->download_head,
+			    fastboot->rx_buffer,
 			    MIN(fastboot->download_size - fastboot->download_head,
-			        USB_EP_BUFFER_MAX_SIZE),
+			        USB_EP_BULK_OUT_MAX_XFER),
 			    &fastboot->download_amount, false))
 			fastboot_set_status(fastboot, FASTBOOT_STATUS_USB_ERROR);
 		
@@ -507,6 +510,8 @@ static void fastboot_rx_state_download(usbd_gadget_fastboot_t *fastboot)
 		fastboot_set_status(fastboot, FASTBOOT_STATUS_USB_ERROR);
 		return;
 	}
+
+	memcpy(fastboot_download_buffer + fastboot->download_head, fastboot->rx_buffer, fastboot->download_amount);
 	
 	fastboot->download_head+= fastboot->download_amount;
 
