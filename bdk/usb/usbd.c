@@ -1576,6 +1576,29 @@ int usb_device_ep1_out_reading_finish(u32 *pending_bytes)
 		return 26;
 }
 
+int usb_device_ep1_out_reading_poll(u32 *pending_bytes)
+{
+	usb_ep_status_t ep_status;
+
+	ep_status = _usbd_get_ep1_status(USB_XFER_DIR_OUT);
+
+	if (ep_status == USB_EP_STATUS_ACTIVE)
+		return 3;
+	
+	*pending_bytes = _usbd_get_ep1_out_bytes_read();
+
+	_usbd_mark_ep_complete(USB_EP_BULK_OUT);
+
+	bpmp_mmu_maintenance(BPMP_MMU_MAINT_CLN_INV_WAY, false);
+
+	if (ep_status == USB_EP_STATUS_IDLE)
+		return 0;
+	else if (ep_status == USB_EP_STATUS_DISABLED)
+		return 28;
+	else
+		return 26;
+}
+
 int usb_device_write_ep1_in(u8 *buf, u32 len, u32 *bytes_written, bool sync)
 {
 	if (len > USB_EP_BUFFER_MAX_SIZE)
@@ -1624,6 +1647,27 @@ int usb_device_ep1_in_writing_finish(u32 *pending_bytes)
 
 	usb_device_stall_ep1_bulk_out();
 	return 26;
+}
+
+int usb_device_ep1_in_writing_poll(u32 *pending_bytes)
+{
+	usb_ep_status_t ep_status;
+
+	ep_status = _usbd_get_ep1_status(USB_XFER_DIR_IN);
+
+	if (ep_status == USB_EP_STATUS_ACTIVE)
+		return 3;
+	
+	*pending_bytes = _usbd_get_ep1_in_bytes_written();
+
+	_usbd_mark_ep_complete(USB_EP_BULK_IN);
+
+	if (ep_status == USB_EP_STATUS_IDLE)
+		return 0;
+	else if (ep_status == USB_EP_STATUS_DISABLED)
+		return 28;
+	else
+		return 26;
 }
 
 bool usb_device_get_suspended()

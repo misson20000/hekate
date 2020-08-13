@@ -75,8 +75,10 @@ int  usb_device_ep0_initialize(usb_gadget_type type);
 int  usb_device_read_ep1_out(u8 *buf, u32 len, u32 *bytes_read, bool sync);
 int  usb_device_read_ep1_out_big_reads(u8 *buf, u32 len, u32 *bytes_read);
 int  usb_device_ep1_out_reading_finish(u32 *pending_bytes);
+int  usb_device_ep1_out_reading_poll(u32 *pending_bytes);
 int  usb_device_write_ep1_in(u8 *buf, u32 len, u32 *bytes_written, bool sync);
 int  usb_device_ep1_in_writing_finish(u32 *pending_bytes);
+int  usb_device_ep1_in_writing_poll(u32 *pending_bytes);
 bool usb_device_get_suspended();
 
 int  usb_device_gadget_ums(usb_ctxt_t *usbs);
