@@ -22,10 +22,12 @@
 #include <string.h>
 
 #include <memory_map.h>
-#include <mem/heap.h>
+#include <soc/uart.h>
 #include <usb/usbd.h>
 #include <utils/util.h>
 #include <utils/sprintf.h>
+
+#include <libs/lvgl/lv_misc/lv_log.h>
 
 enum fastboot_status {
 	FASTBOOT_STATUS_NORMAL,
@@ -96,6 +98,29 @@ typedef struct _usbd_gadget_fastboot_t {
 	void (*reload_nyx)();
 } usbd_gadget_fastboot_t;
 
+void uart_printf(const char *fmt, ...)
+{
+	va_list ap;
+	static char buf[256];
+
+	va_start(ap, fmt);
+	vs_printf(buf, fmt, ap);
+	va_end(ap);
+
+	uart_send(UART_B, buf, strlen(buf));
+}
+
+static u32 stopwatch[16];
+static u32 stopwatch_index = 0;
+
+static void tic() {
+	stopwatch[stopwatch_index++] = get_tmr_us();
+}
+
+static void toc(const char *msg) {
+	u32 end = get_tmr_us();
+	uart_printf("[%8d] %s took %d us\r\n", get_tmr_ms(), msg, end - stopwatch[--stopwatch_index]);
+}
 
 static bool fastboot_set_status(usbd_gadget_fastboot_t *fastboot, enum fastboot_status new_status)
 {
@@ -318,9 +343,11 @@ int usb_device_gadget_fastboot(usb_ctxt_t *usbs)
 	
 	while (fastboot.status == FASTBOOT_STATUS_NORMAL)
 	{
+		//tic();
 		// Do DRAM training and update system tasks.
 		_system_maintenance(&fastboot);
-		
+		//toc("system maintenance");
+
 		// Check for suspended USB in case the cable was pulled.
 		if (usb_device_get_suspended())
 			break; // Disconnected.
@@ -425,32 +452,39 @@ static void fastboot_rx_enter_idle(usbd_gadget_fastboot_t *fastboot)
 
 static void fastboot_rx_enter_command(usbd_gadget_fastboot_t *fastboot)
 {
+	tic();
 	if (usb_device_read_ep1_out((u8*) fastboot->rx_buffer, FASTBOOT_COMMAND_BUFFER_SIZE, &fastboot->rx_length, false))
 		fastboot_set_status(fastboot, FASTBOOT_STATUS_USB_ERROR);
+	toc("rx_enter_command usb_device_read_ep1_out");
 	
 	fastboot->rx_state = FASTBOOT_RX_STATE_COMMAND;
 }
 
 static void fastboot_rx_enter_waiting_tx_for_process(usbd_gadget_fastboot_t *fastboot)
 {
+	uart_printf("[%8d] entering rx wait tx for process\r\n", get_tmr_ms());
 	fastboot->rx_state = FASTBOOT_RX_STATE_WAITING_TX_FOR_PROCESS;
 }
 
 static void fastboot_rx_enter_waiting_tx_for_reboot_bootloader(usbd_gadget_fastboot_t *fastboot)
 {
+	uart_printf("[%8d] entering rx wait tx for reboot bootloader\r\n", get_tmr_ms());
 	fastboot->rx_state = FASTBOOT_RX_STATE_WAITING_TX_FOR_REBOOT_BOOTLOADER;
 }
 
 static void fastboot_rx_enter_download(usbd_gadget_fastboot_t *fastboot)
 {
+	uart_printf("[%8d] entering rx download\r\n", get_tmr_ms());
 	if (fastboot->download_head < fastboot->download_size)
 	{
+		tic();
 		if (usb_device_read_ep1_out(
 			    fastboot->rx_buffer,
 			    MIN(fastboot->download_size - fastboot->download_head,
 			        USB_EP_BULK_OUT_MAX_XFER),
 			    &fastboot->download_amount, false))
 			fastboot_set_status(fastboot, FASTBOOT_STATUS_USB_ERROR);
+		toc("rx_enter_download usb_device_read_ep1_out");
 		
 		fastboot->rx_state = FASTBOOT_RX_STATE_DOWNLOAD;
 	}
@@ -463,13 +497,17 @@ static void fastboot_rx_enter_download(usbd_gadget_fastboot_t *fastboot)
 // tx state entry
 static void fastboot_tx_enter_idle(usbd_gadget_fastboot_t *fastboot)
 {
+	uart_printf("[%8d] entering tx idle\r\n", get_tmr_ms());
 	fastboot->tx_state = FASTBOOT_TX_STATE_IDLE;
 }
 
 static void fastboot_tx_enter_send_response(usbd_gadget_fastboot_t *fastboot)
 {
+	uart_printf("[%8d] entering tx send response\r\n", get_tmr_ms());
+	tic();
 	if (usb_device_write_ep1_in((u8*) fastboot->tx_buffer, strlen(fastboot->tx_buffer), &fastboot->tx_length, false))
 		fastboot_set_status(fastboot, FASTBOOT_STATUS_USB_ERROR);
+	toc("tx_enter_send_response usb_device_write_ep1_in");
 
 	fastboot->tx_state = FASTBOOT_TX_STATE_SEND_RESPONSE;
 }
@@ -483,13 +521,17 @@ static void fastboot_rx_state_idle(usbd_gadget_fastboot_t *fastboot)
 
 static void fastboot_rx_state_command(usbd_gadget_fastboot_t *fastboot)
 {
+	//tic();
 	switch (usb_device_ep1_out_reading_poll(&fastboot->rx_length))
 	{
 	case 0: // ok
+		//toc("rx_state_command usb_device_ep1_out_reading_poll");
 		break;
 	case 3: // still active... wait a bit longer
+		//toc("rx_state_command usb_device_ep1_out_reading_poll");
 		return;
 	default: // error
+		//toc("rx_state_command usb_device_ep1_out_reading_poll");
 		fastboot_set_status(fastboot, FASTBOOT_STATUS_USB_ERROR);
 		return;
 	}
@@ -502,18 +544,24 @@ static void fastboot_rx_state_command(usbd_gadget_fastboot_t *fastboot)
 
 static void fastboot_rx_state_download(usbd_gadget_fastboot_t *fastboot)
 {
+	//tic();
 	switch (usb_device_ep1_out_reading_poll(&fastboot->download_amount))
 	{
 	case 0: // ok
+		//toc("rx_state_download usb_device_ep1_out_reading_poll");
 		break;
 	case 3: // still active... wait a bit longer
+		//toc("rx_state_download usb_device_ep1_out_reading_poll");
 		return;
 	default: // error
+		//toc("rx_state_download usb_device_ep1_out_reading_poll");
 		fastboot_set_status(fastboot, FASTBOOT_STATUS_USB_ERROR);
 		return;
 	}
 
+	tic();
 	memcpy(fastboot_download_buffer + fastboot->download_head, fastboot->rx_buffer, fastboot->download_amount);
+	toc("rx_state_download memcpy");
 	
 	fastboot->download_head+= fastboot->download_amount;
 
@@ -557,13 +605,17 @@ static void fastboot_tx_state_idle(usbd_gadget_fastboot_t *fastboot)
 
 static void fastboot_tx_state_send_response(usbd_gadget_fastboot_t *fastboot)
 {
+	tic();
 	switch (usb_device_ep1_in_writing_poll(&fastboot->tx_length))
 	{
 	case 0: // ok
+		toc("tx_state_send_response usb_device_ep1_in_writing_poll");
 		break;
 	case 3: // still active... wait a bit longer
+		toc("tx_state_send_response usb_device_ep1_in_writing_poll");
 		return;
 	default: // error
+		toc("tx_state_send_response usb_device_ep1_in_writing_poll");
 		fastboot_set_status(fastboot, FASTBOOT_STATUS_USB_ERROR);
 		return;
 	}

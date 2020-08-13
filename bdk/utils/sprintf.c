@@ -70,14 +70,12 @@ static void _s_putp(u32 *v, int base, char fill, int fcnt)
 	_s_putn(*v, base, fill, fcnt);
 }
 
-void s_printf(char *out_buf, const char *fmt, ...)
+void vs_printf(char *out_buf, const char *fmt, va_list ap)
 {
-	va_list ap;
 	int fill, fcnt;
 
 	sout_buf = &out_buf;
 
-	va_start(ap, fmt);
 	while(*fmt)
 	{
 		if(*fmt == '%')
@@ -145,5 +143,13 @@ void s_printf(char *out_buf, const char *fmt, ...)
 
 out:
 	**sout_buf = '\0';
+}
+
+void s_printf(char *out_buf, const char *fmt, ...)
+{
+	va_list ap;
+	
+	va_start(ap, fmt);
+	vs_printf(out_buf, fmt, ap);
 	va_end(ap);
 }
