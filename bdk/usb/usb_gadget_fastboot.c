@@ -77,7 +77,6 @@ typedef struct _usbd_gadget_fastboot_t {
 	enum fastboot_status status;
 	enum fastboot_rx_state rx_state;
 	enum fastboot_tx_state tx_state;
-	bool tight_turnaround;
 	
 	// +1 for null terminator because we use string functions
 	char rx_buffer[FASTBOOT_COMMAND_BUFFER_SIZE + 1];
@@ -316,11 +315,8 @@ int usb_device_gadget_fastboot(usb_ctxt_t *usbs)
 	
 	while (fastboot.status == FASTBOOT_STATUS_NORMAL)
 	{
-		if (!fastboot.tight_turnaround)
-		{
-			// Do DRAM training and update system tasks.
-			_system_maintenance(&fastboot);
-		}
+		// Do DRAM training and update system tasks.
+		_system_maintenance(&fastboot);
 		
 		// Check for suspended USB in case the cable was pulled.
 		if (usb_device_get_suspended())
@@ -374,12 +370,9 @@ int usb_device_gadget_fastboot(usb_ctxt_t *usbs)
 			break;
 		}
 
-		if (!fastboot.tight_turnaround)
-		{
-			char text[128];
-			s_printf(text, "#C7EA46 RX State:# %s\n#C7EA46 TX State:# %s", rx_state_name, tx_state_name);
-			usbs->set_text(usbs->label, text);
-		}
+		char text[128];
+		s_printf(text, "#C7EA46 RX State:# %s\n#C7EA46 TX State:# %s", rx_state_name, tx_state_name);
+		usbs->set_text(usbs->label, text);
 	}
 
 	switch (fastboot.status)
@@ -447,10 +440,6 @@ static void fastboot_rx_enter_download(usbd_gadget_fastboot_t *fastboot)
 {
 	if (fastboot->download_head < fastboot->download_size)
 	{
-		char buffer[64];
-		s_printf(buffer, "#C7EA46 Status:# Downloading (%d/%d KiB)", fastboot->download_head / 1024, fastboot->download_size / 1024);
-		fastboot->set_text(fastboot->label, buffer);
-
 		if (usb_device_read_ep1_out(
 			    fastboot_download_buffer + fastboot->download_head,
 			    MIN(fastboot->download_size - fastboot->download_head,
@@ -462,8 +451,6 @@ static void fastboot_rx_enter_download(usbd_gadget_fastboot_t *fastboot)
 	}
 	else
 	{
-		fastboot->tight_turnaround = false;
-
 		fastboot_send_response(fastboot, FASTBOOT_RESPONSE_OKAY, FASTBOOT_DISPOSITION_NORMAL, "got it!");
 	}
 }
