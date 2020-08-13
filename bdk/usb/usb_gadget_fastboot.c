@@ -33,7 +33,6 @@ enum fastboot_status {
 	FASTBOOT_STATUS_INVALID_STATE,
 	FASTBOOT_STATUS_USB_ERROR,
 	FASTBOOT_STATUS_REBOOT_BOOTLOADER,
-	FASTBOOT_STATUS_CANARY_FAIL,
 };
 
 enum fastboot_rx_state {
@@ -74,15 +73,11 @@ static const u32 fastboot_download_capacity = RAM_DISK_SZ;
 
 #define FASTBOOT_COMMAND_BUFFER_SIZE 64
 
-#define CHECK_CANARY(fastboot)// fastboot_check_canary(fastboot, __LINE__)
-
 typedef struct _usbd_gadget_fastboot_t {
 	enum fastboot_status status;
 	enum fastboot_rx_state rx_state;
 	enum fastboot_tx_state tx_state;
 	bool tight_turnaround;
-	u32 canary;
-	int canary_fail_line;
 	
 	// +1 for null terminator because we use string functions
 	char rx_buffer[FASTBOOT_COMMAND_BUFFER_SIZE + 1];
@@ -111,15 +106,6 @@ static bool fastboot_set_status(usbd_gadget_fastboot_t *fastboot, enum fastboot_
 		return true;
 	}
 	return false;
-}
-
-static void fastboot_check_canary(usbd_gadget_fastboot_t *fastboot, int line)
-{
-	if (fastboot->canary != 0xaabbcc22)
-	{
-		fastboot_set_status(fastboot, FASTBOOT_STATUS_CANARY_FAIL);
-		fastboot->canary_fail_line = line;
-	}
 }
 
 static void fastboot_handle_ep0_ctrl(usbd_gadget_fastboot_t *fastboot)
@@ -272,8 +258,6 @@ static void fastboot_handle_command(usbd_gadget_fastboot_t *fastboot)
 
 static inline void _system_maintenance(usbd_gadget_fastboot_t *fastboot)
 {
-	CHECK_CANARY(fastboot);
-	
 	static u32 timer_dram = 0;
 	static u32 timer_status_bar = 0;
 
@@ -289,8 +273,6 @@ static inline void _system_maintenance(usbd_gadget_fastboot_t *fastboot)
 		fastboot->system_maintenance(true);
 		timer_status_bar = get_tmr_ms() + 30000;
 	}
-
-	CHECK_CANARY(fastboot);
 }
 
 static void fastboot_rx_state_idle(usbd_gadget_fastboot_t *fastboot);
@@ -323,7 +305,6 @@ int usb_device_gadget_fastboot(usb_ctxt_t *usbs)
 	fastboot.set_text = usbs->set_text;
 	fastboot.system_maintenance = usbs->system_maintenance;
 	fastboot.reload_nyx = usbs->reload_nyx;
-	fastboot.canary = 0xaabbcc22;
 
 	if (usb_device_ep0_initialize(USB_GADGET_FASTBOOT))
 		goto error;
@@ -345,9 +326,7 @@ int usb_device_gadget_fastboot(usb_ctxt_t *usbs)
 		if (usb_device_get_suspended())
 			break; // Disconnected.
 
-		CHECK_CANARY(&fastboot);
 		fastboot_handle_ep0_ctrl(&fastboot);
-		CHECK_CANARY(&fastboot);
 
 		const char *rx_state_name = "invalid";
 		
@@ -378,8 +357,6 @@ int usb_device_gadget_fastboot(usb_ctxt_t *usbs)
 			break;
 		}
 
-		CHECK_CANARY(&fastboot);
-
 		const char *tx_state_name = "invalid";
 
 		switch (fastboot.tx_state)
@@ -397,16 +374,12 @@ int usb_device_gadget_fastboot(usb_ctxt_t *usbs)
 			break;
 		}
 
-		CHECK_CANARY(&fastboot);
-
 		if (!fastboot.tight_turnaround)
 		{
 			char text[128];
 			s_printf(text, "#C7EA46 RX State:# %s\n#C7EA46 TX State:# %s", rx_state_name, tx_state_name);
 			usbs->set_text(usbs->label, text);
 		}
-
-		CHECK_CANARY(&fastboot);
 	}
 
 	switch (fastboot.status)
@@ -428,11 +401,6 @@ int usb_device_gadget_fastboot(usb_ctxt_t *usbs)
 	case FASTBOOT_STATUS_REBOOT_BOOTLOADER:
 		usbs->set_text(usbs->label, "#C7EA46 Status:# Fastboot ended (rebooting bootloader)");
 		goto exit;
-	case FASTBOOT_STATUS_CANARY_FAIL: {
-		char text[128];
-		s_printf(text, "#C7EA46 Status:# Fastboot ended (canary failed at %d)", fastboot.canary_fail_line);
-		usbs->set_text(usbs->label, text);
-		goto exit; }
 	}
 	
 error:
@@ -454,37 +422,25 @@ exit:
 
 static void fastboot_rx_enter_idle(usbd_gadget_fastboot_t *fastboot)
 {
-	CHECK_CANARY(fastboot);
 	fastboot->rx_state = FASTBOOT_RX_STATE_IDLE;
 }
 
 static void fastboot_rx_enter_command(usbd_gadget_fastboot_t *fastboot)
 {
-	//fastboot->set_text(fastboot->label, "#C7EA46 Status:# Ready");
-
-	CHECK_CANARY(fastboot);
 	if (usb_device_read_ep1_out((u8*) fastboot->rx_buffer, FASTBOOT_COMMAND_BUFFER_SIZE, &fastboot->rx_length, false))
 		fastboot_set_status(fastboot, FASTBOOT_STATUS_USB_ERROR);
-	CHECK_CANARY(fastboot);
 	
 	fastboot->rx_state = FASTBOOT_RX_STATE_COMMAND;
-	CHECK_CANARY(fastboot);
 }
 
 static void fastboot_rx_enter_waiting_tx_for_process(usbd_gadget_fastboot_t *fastboot)
 {
-	//fastboot->set_text(fastboot->label, "#C7EA46 Status:# Waiting for TX to finish for processing");
-	
 	fastboot->rx_state = FASTBOOT_RX_STATE_WAITING_TX_FOR_PROCESS;
-	CHECK_CANARY(fastboot);
 }
 
 static void fastboot_rx_enter_waiting_tx_for_reboot_bootloader(usbd_gadget_fastboot_t *fastboot)
 {
-	//fastboot->set_text(fastboot->label, "#C7EA46 Status:# Waiting for TX to finish for reboot bootloader");
-	
 	fastboot->rx_state = FASTBOOT_RX_STATE_WAITING_TX_FOR_REBOOT_BOOTLOADER;
-	CHECK_CANARY(fastboot);
 }
 
 static void fastboot_rx_enter_download(usbd_gadget_fastboot_t *fastboot)
@@ -495,9 +451,6 @@ static void fastboot_rx_enter_download(usbd_gadget_fastboot_t *fastboot)
 		s_printf(buffer, "#C7EA46 Status:# Downloading (%d/%d KiB)", fastboot->download_head / 1024, fastboot->download_size / 1024);
 		fastboot->set_text(fastboot->label, buffer);
 
-		//fastboot->tight_turnaround = true;
-		
-		CHECK_CANARY(fastboot);
 		if (usb_device_read_ep1_out(
 			    fastboot_download_buffer + fastboot->download_head,
 			    MIN(fastboot->download_size - fastboot->download_head,
@@ -506,71 +459,53 @@ static void fastboot_rx_enter_download(usbd_gadget_fastboot_t *fastboot)
 			fastboot_set_status(fastboot, FASTBOOT_STATUS_USB_ERROR);
 		
 		fastboot->rx_state = FASTBOOT_RX_STATE_DOWNLOAD;
-		CHECK_CANARY(fastboot);
 	}
 	else
 	{
 		fastboot->tight_turnaround = false;
-		
-		CHECK_CANARY(fastboot);
+
 		fastboot_send_response(fastboot, FASTBOOT_RESPONSE_OKAY, FASTBOOT_DISPOSITION_NORMAL, "got it!");
-		CHECK_CANARY(fastboot);
 	}
 }
 
 // tx state entry
 static void fastboot_tx_enter_idle(usbd_gadget_fastboot_t *fastboot)
 {
-	CHECK_CANARY(fastboot);
 	fastboot->tx_state = FASTBOOT_TX_STATE_IDLE;
-	CHECK_CANARY(fastboot);
 }
 
 static void fastboot_tx_enter_send_response(usbd_gadget_fastboot_t *fastboot)
 {
-	CHECK_CANARY(fastboot);
 	if (usb_device_write_ep1_in((u8*) fastboot->tx_buffer, strlen(fastboot->tx_buffer), &fastboot->tx_length, false))
 		fastboot_set_status(fastboot, FASTBOOT_STATUS_USB_ERROR);
 
 	fastboot->tx_state = FASTBOOT_TX_STATE_SEND_RESPONSE;
-	CHECK_CANARY(fastboot);
 }
 
 // rx state process
 static void fastboot_rx_state_idle(usbd_gadget_fastboot_t *fastboot)
 {
 	// we should never actually wind up here, I think?
-	CHECK_CANARY(fastboot);
 	return;
 }
 
 static void fastboot_rx_state_command(usbd_gadget_fastboot_t *fastboot)
 {
-	CHECK_CANARY(fastboot);
 	switch (usb_device_ep1_out_reading_poll(&fastboot->rx_length))
 	{
 	case 0: // ok
-		CHECK_CANARY(fastboot);
 		break;
 	case 3: // still active... wait a bit longer
-		CHECK_CANARY(fastboot);
 		return;
 	default: // error
-		CHECK_CANARY(fastboot);
 		fastboot_set_status(fastboot, FASTBOOT_STATUS_USB_ERROR);
 		return;
 	}
 
-	CHECK_CANARY(fastboot);
-	
 	// so we can use string functions
 	fastboot->rx_buffer[fastboot->rx_length] = '\0';
 
-	CHECK_CANARY(fastboot);
-	
 	fastboot_rx_enter_waiting_tx_for_process(fastboot);
-
-	CHECK_CANARY(fastboot);
 }
 
 static void fastboot_rx_state_download(usbd_gadget_fastboot_t *fastboot)
@@ -604,7 +539,6 @@ static void fastboot_rx_state_waiting_tx_for_process(usbd_gadget_fastboot_t *fas
 	  (client needs to wait until it has finished sending first response to begin handling next command)
 	 */
 
-	CHECK_CANARY(fastboot);
 	if (fastboot->tx_state == FASTBOOT_TX_STATE_IDLE)
 	{
 		fastboot_rx_enter_idle(fastboot);
@@ -624,27 +558,21 @@ static void fastboot_rx_state_waiting_tx_for_reboot_bootloader(usbd_gadget_fastb
 // tx state process
 static void fastboot_tx_state_idle(usbd_gadget_fastboot_t *fastboot)
 {
-	CHECK_CANARY(fastboot);
 	return;
 }
 
 static void fastboot_tx_state_send_response(usbd_gadget_fastboot_t *fastboot)
 {
-	CHECK_CANARY(fastboot);
 	switch (usb_device_ep1_in_writing_poll(&fastboot->tx_length))
 	{
 	case 0: // ok
-		CHECK_CANARY(fastboot);
 		break;
 	case 3: // still active... wait a bit longer
-		CHECK_CANARY(fastboot);
 		return;
 	default: // error
-		CHECK_CANARY(fastboot);
 		fastboot_set_status(fastboot, FASTBOOT_STATUS_USB_ERROR);
 		return;
 	}
 
 	fastboot_tx_enter_idle(fastboot); // rx state machine will pick up on this if it cares
-	CHECK_CANARY(fastboot);
 }
