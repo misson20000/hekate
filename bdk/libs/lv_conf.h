@@ -155,7 +155,7 @@
 
 
 /*Log settings*/
-#define USE_LV_LOG        0   /*Enable/disable the log module*/
+#define USE_LV_LOG        1   /*Enable/disable the log module*/
 #if USE_LV_LOG
 /* How important log should be added:
  * LV_LOG_LEVEL_TRACE       A lot of logs to give detailed information
@@ -163,7 +163,7 @@
  * LV_LOG_LEVEL_WARN        Log if something unwanted happened but didn't caused problem
  * LV_LOG_LEVEL_ERROR       Only critical issue, when the system may fail
  */
-#  define LV_LOG_LEVEL    LV_LOG_LEVEL_WARN
+#  define LV_LOG_LEVEL    LV_LOG_LEVEL_ERROR
 /* 1: Print the log with 'printf'; 0: user need to register a callback*/
 #  define LV_LOG_PRINTF   1
 #endif  /*USE_LV_LOG*/

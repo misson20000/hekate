@@ -68,9 +68,8 @@ CUSTOMDEFINES += -DNYX_VER_MJ=$(NYXVERSION_MAJOR) -DNYX_VER_MN=$(NYXVERSION_MINO
 CUSTOMDEFINES += -DGFX_INC=$(GFX_INC) -DFFCFG_INC=$(FFCFG_INC)
 
 # 0: UART_A, 1: UART_B.
-#CUSTOMDEFINES += -DDEBUG_UART_PORT=0
-
-#CUSTOMDEFINES += -DDEBUG
+CUSTOMDEFINES += -DDEBUG_UART_PORT=1
+CUSTOMDEFINES += -DDEBUG
 
 ARCH := -march=armv4t -mtune=arm7tdmi -mthumb -mthumb-interwork
 CFLAGS = $(ARCH) -O2 -g -nostdlib -ffunction-sections -fdata-sections -fomit-frame-pointer -fno-inline -std=gnu11 -Wall $(CUSTOMDEFINES)

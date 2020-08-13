@@ -402,16 +402,14 @@ void ipl_main()
 	// Important: Preserve version header!
 	__asm__ ("" : : "" (ipl_ver));
 
-#if (LV_LOG_PRINTF == 1)
 	gpio_config(GPIO_PORT_G, GPIO_PIN_0, GPIO_MODE_SPIO);
 	gpio_config(GPIO_PORT_D, GPIO_PIN_1, GPIO_MODE_GPIO);
 	pinmux_config_uart(UART_B);
 	clock_enable_uart(UART_B);
-	uart_init(UART_B, 115200);
+	uart_init(UART_B, 1000000);
 
 	uart_send(UART_B, (u8 *)"hekate-NYX: Hello!\r\n", 20);
 	uart_wait_idle(UART_B, UART_TX_IDLE);
-#endif
 
 	// Initialize the rest of hw and load nyx's resources.
 	nyx_init_load_res();
